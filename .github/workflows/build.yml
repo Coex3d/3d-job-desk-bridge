@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            out: 3d-job-desk-bridge-windows-amd64.exe
+          - goos: darwin
+            goarch: amd64
+            out: 3d-job-desk-bridge-macos-intel
+          - goos: darwin
+            goarch: arm64
+            out: 3d-job-desk-bridge-macos-apple
+          - goos: linux
+            goarch: amd64
+            out: 3d-job-desk-bridge-linux-amd64
+          - goos: linux
+            goarch: arm64
+            out: 3d-job-desk-bridge-linux-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -trimpath -ldflags="-s -w" -o "dist/${{ matrix.out }}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out }}
+          path: dist/${{ matrix.out }}
